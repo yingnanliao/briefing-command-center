@@ -1,4 +1,4 @@
-// 戰情指揮中心情報看板邏輯 (Tactical Command Center Logic)
+// 戰情指揮中心情報看板邏輯 (Tactical Command Center Logic - High-Tech Edition)
 
 let allBriefingsData = null;
 let currentFilteredChannels = [];
@@ -47,12 +47,12 @@ function setupEventListeners() {
     if (!btn) return;
     
     document.querySelectorAll('.filter-btn').forEach(b => {
-      b.classList.remove('active', 'bg-cyan-500/20', 'text-cyan-300', 'border-cyan-500/40');
-      b.classList.add('bg-slate-900/60', 'text-slate-400', 'border-slate-800');
+      b.classList.remove('active', 'bg-cyan-500/20', 'text-cyan-300', 'border-cyan-500/50', 'shadow-sm', 'shadow-cyan-500/20');
+      b.classList.add('bg-slate-900/70', 'text-slate-400', 'border-slate-800');
     });
     
-    btn.classList.add('active', 'bg-cyan-500/20', 'text-cyan-300', 'border-cyan-500/40');
-    btn.classList.remove('bg-slate-900/60', 'text-slate-400', 'border-slate-800');
+    btn.classList.add('active', 'bg-cyan-500/20', 'text-cyan-300', 'border-cyan-500/50', 'shadow-sm', 'shadow-cyan-500/20');
+    btn.classList.remove('bg-slate-900/70', 'text-slate-400', 'border-slate-800');
     
     currentCategory = btn.dataset.cat;
     applyFiltersAndRender();
@@ -62,10 +62,10 @@ function setupEventListeners() {
   document.querySelectorAll('.type-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.type-btn').forEach(b => {
-        b.classList.remove('text-cyan-400', 'bg-slate-800');
+        b.classList.remove('text-cyan-400', 'bg-slate-800', 'font-semibold', 'shadow-inner');
         b.classList.add('text-slate-400');
       });
-      btn.classList.add('text-cyan-400', 'bg-slate-800');
+      btn.classList.add('text-cyan-400', 'bg-slate-800', 'font-semibold', 'shadow-inner');
       btn.classList.remove('text-slate-400');
       
       if (btn.id === 'type-all') currentType = 'all';
@@ -140,6 +140,18 @@ function setupEventListeners() {
       navigateNextChannel();
     }
   });
+
+  // 閱覽器進度條監聽
+  const scrollContainer = document.getElementById('reader-scroll-container');
+  if (scrollContainer) {
+    scrollContainer.addEventListener('scroll', () => {
+      const scrollTop = scrollContainer.scrollTop;
+      const scrollHeight = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+      const progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+      const bar = document.getElementById('reader-progress-bar');
+      if (bar) bar.style.width = `${progress}%`;
+    });
+  }
 }
 
 // ==================== 資料載入 ====================
@@ -154,7 +166,7 @@ async function loadBriefingsData(forceBust = false) {
     // 更新頂部 HUD 資訊
     const lastSyncEl = document.getElementById('last-sync-time');
     if (lastSyncEl) {
-      lastSyncEl.textContent = `最後同步時間: ${allBriefingsData.generated_at} (Taipei)`;
+      lastSyncEl.innerHTML = `<i data-lucide="satellite" class="w-3.5 h-3.5 text-emerald-400"></i> 最後同步: ${allBriefingsData.generated_at} (Taipei)`;
     }
     
     const countBadge = document.getElementById('channel-count-badge');
@@ -218,88 +230,92 @@ function renderBriefingCards(channels) {
   const container = document.getElementById('briefings-grid');
   if (!channels || channels.length === 0) {
     container.innerHTML = `
-      <div class="col-span-full py-16 text-center text-slate-500 font-mono">
-        <i data-lucide="search-x" class="w-8 h-8 mx-auto mb-2 text-slate-600"></i>
-        未搜尋到符合目前條件的情報頻道
+      <div class="col-span-full py-20 text-center text-slate-500 font-mono">
+        <i data-lucide="search-x" class="w-10 h-10 mx-auto mb-3 text-slate-600"></i>
+        未搜尋到符合目前篩選條件的情報頻道
       </div>
     `;
     lucide.createIcons();
     return;
   }
 
-  container.innerHTML = channels.map((ch, index) => {
+  container.innerHTML = channels.map((ch) => {
     const latest = ch.latest;
     const hasToday = ch.has_today;
     const bullets = latest ? latest.summary_bullets || [] : [];
     
-    // 格式化摘要條列（醒目標示 [5★], [4★]）
+    // 格式化摘要條列（醒目標示 [5★], [4★], [3★]）
     const formattedBullets = bullets.slice(0, 4).map(b => {
       let text = escapeHtml(b);
-      text = text.replace(/\[5★\]/g, '<span class="text-amber-400 font-bold bg-amber-950/40 px-1 rounded">[5★]</span>');
-      text = text.replace(/\[4★\]/g, '<span class="text-cyan-400 font-bold bg-cyan-950/40 px-1 rounded">[4★]</span>');
-      text = text.replace(/\[3★\]/g, '<span class="text-slate-300 font-bold bg-slate-800 px-1 rounded">[3★]</span>');
-      return `<li class="flex items-start gap-2 line-clamp-2">
-        <span class="text-cyan-400 select-none mt-0.5">•</span>
-        <span class="flex-1">${text}</span>
+      text = text.replace(/\[5★\]/g, '<span class="badge-5star">5★</span>');
+      text = text.replace(/\[4★\]/g, '<span class="badge-4star">4★</span>');
+      text = text.replace(/\[3★\]/g, '<span class="badge-3star">3★</span>');
+      return `<li class="flex items-start gap-2.5 line-clamp-2">
+        <span class="text-cyan-400 select-none font-bold text-xs mt-0.5">▸</span>
+        <span class="flex-1 leading-relaxed">${text}</span>
       </li>`;
     }).join('');
 
     const statusBadge = hasToday 
-      ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+      ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 shadow-sm shadow-emerald-500/20">
            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 radar-live"></span> 今日已落盤
          </span>`
-      : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono text-cyan-300 bg-cyan-950/60 border border-cyan-500/30">
+      : `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono text-cyan-300 bg-cyan-950/70 border border-cyan-500/40 shadow-sm shadow-cyan-500/10">
            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span> 最新刊號
          </span>`;
 
     return `
-      <div class="glass-panel rounded-xl p-5 flex flex-col justify-between transition-all duration-200 cursor-pointer group hover:-translate-y-1"
+      <div class="glass-panel spotlight-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between cursor-pointer group tactical-bracket"
            onclick="openReaderByChannelId('${ch.id}')"
            style="border-top: 3px solid ${ch.accent_color};">
         
         <!-- Card Top Section -->
         <div>
           <!-- Meta Header -->
-          <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="flex items-center justify-between gap-2 mb-3.5">
             <div class="flex items-center space-x-2">
-              <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-slate-900 border border-slate-700 text-slate-300">
+              <span class="px-2.5 py-0.5 rounded-md text-[11px] font-mono font-bold bg-slate-950 border border-slate-700 text-slate-300 shadow-inner">
                 ${ch.badge}
               </span>
-              <span class="text-xs text-slate-400 font-mono">${ch.category_name}</span>
+              <span class="text-xs text-slate-400 font-mono tracking-wide">${ch.category_name}</span>
             </div>
             <div>${statusBadge}</div>
           </div>
 
           <!-- Channel Name & Title -->
-          <h3 class="text-base font-bold text-slate-100 group-hover:text-cyan-300 transition-colors flex items-center gap-2">
-            <i data-lucide="${ch.icon}" class="w-4 h-4 text-cyan-400 flex-shrink-0"></i>
-            <span class="truncate">${ch.name}</span>
+          <h3 class="text-base font-extrabold text-slate-100 group-hover:text-cyan-300 transition-colors flex items-center gap-2.5">
+            <div class="p-1.5 rounded-lg bg-slate-900/90 border border-slate-800 text-cyan-400 shadow-sm group-hover:border-cyan-400/50 group-hover:shadow-cyan-400/20 transition-all flex-shrink-0">
+              <i data-lucide="${ch.icon}" class="w-4 h-4"></i>
+            </div>
+            <span class="truncate tracking-tight">${ch.name}</span>
           </h3>
 
-          <div class="text-xs text-slate-400 font-mono mt-1 mb-3">
-            ${latest ? latest.date : '尚未生成'} · ${latest ? latest.title : '暫無報告'}
+          <div class="text-xs text-slate-400 font-mono mt-1.5 mb-3.5 flex items-center gap-2 truncate">
+            <span class="text-cyan-400/80 font-bold">${latest ? latest.date : '尚未生成'}</span>
+            <span class="text-slate-600">·</span>
+            <span class="truncate text-slate-300">${latest ? latest.title : '暫無報告'}</span>
           </div>
 
           <!-- 30-Second Summary Bullets (精簡摘要) -->
-          <div class="p-3 rounded-lg bg-slate-950/60 border border-slate-800/80 mb-4 min-h-[96px]">
-            <div class="text-[11px] font-mono text-cyan-400/80 mb-1.5 flex items-center gap-1">
-              <i data-lucide="zap" class="w-3 h-3 text-amber-400"></i> 30 秒重點精華速覽:
+          <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 mb-4 min-h-[105px] shadow-inner">
+            <div class="text-[11px] font-mono text-cyan-400/90 mb-2 flex items-center gap-1.5 font-bold">
+              <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i> 30 秒作戰精華速覽:
             </div>
-            <ul class="text-xs text-slate-300 space-y-1.5">
+            <ul class="text-xs text-slate-300 space-y-2">
               ${formattedBullets || '<li class="text-slate-500 text-[11px]">暫無條列精華，請點擊開啟全文。</li>'}
             </ul>
           </div>
         </div>
 
         <!-- Card Bottom Section -->
-        <div class="pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs font-mono text-slate-400">
+        <div class="pt-3.5 border-t border-slate-800/70 flex items-center justify-between text-xs font-mono text-slate-400">
           <div class="flex items-center space-x-3">
-            <span>${latest ? (latest.word_count).toLocaleString() + ' 字' : '0 字'}</span>
-            <span>·</span>
-            <span>~${latest ? latest.read_time_minutes : 0} 分鐘</span>
+            <span class="text-slate-300">${latest ? (latest.word_count).toLocaleString() + ' 字' : '0 字'}</span>
+            <span class="text-slate-600">·</span>
+            <span class="text-slate-400">~${latest ? latest.read_time_minutes : 0} 分鐘</span>
           </div>
-          <span class="text-cyan-400 group-hover:translate-x-1 transition-transform flex items-center gap-1 font-bold">
-            進入作戰閱覽 <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          <span class="text-cyan-400 group-hover:text-cyan-300 group-hover:translate-x-1.5 transition-all flex items-center gap-1.5 font-bold font-mono">
+            作戰閱覽 <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
           </span>
         </div>
 
@@ -307,7 +323,21 @@ function renderBriefingCards(channels) {
     `;
   }).join('');
 
+  initSpotlightEffect();
   lucide.createIcons();
+}
+
+// 游標聚光燈座標動態計算
+function initSpotlightEffect() {
+  document.querySelectorAll('.spotlight-card').forEach(card => {
+    card.addEventListener('mousemove', (e) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      card.style.setProperty('--mouse-x', `${x}px`);
+      card.style.setProperty('--mouse-y', `${y}px`);
+    });
+  });
 }
 
 // ==================== 內嵌作戰閱覽器 (TERMINAL READER) ====================
@@ -367,7 +397,7 @@ function renderReaderContent(ch, edition) {
   const tagsContainer = document.getElementById('reader-tags');
   const tags = edition.tags || [];
   tagsContainer.innerHTML = tags.map(t => 
-    `<span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-400">#${t}</span>`
+    `<span class="px-2.5 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-mono">#${t}</span>`
   ).join('');
 
   // 30 秒重點精華盒子
@@ -378,10 +408,10 @@ function renderReaderContent(ch, edition) {
     summaryBox.classList.remove('hidden');
     summaryList.innerHTML = bullets.map(b => {
       let text = escapeHtml(b);
-      text = text.replace(/\[5★\]/g, '<span class="text-amber-400 font-bold bg-amber-950/60 px-1.5 py-0.5 rounded">[5★]</span>');
-      text = text.replace(/\[4★\]/g, '<span class="text-cyan-400 font-bold bg-cyan-950/60 px-1.5 py-0.5 rounded">[4★]</span>');
-      text = text.replace(/\[3★\]/g, '<span class="text-slate-300 font-bold bg-slate-800 px-1.5 py-0.5 rounded">[3★]</span>');
-      return `<li class="flex items-start gap-2"><span class="text-amber-400 font-bold">•</span><span>${text}</span></li>`;
+      text = text.replace(/\[5★\]/g, '<span class="badge-5star">5★</span>');
+      text = text.replace(/\[4★\]/g, '<span class="badge-4star">4★</span>');
+      text = text.replace(/\[3★\]/g, '<span class="badge-3star">3★</span>');
+      return `<li class="flex items-start gap-2.5"><span class="text-amber-400 font-bold text-sm select-none">▸</span><span class="leading-relaxed">${text}</span></li>`;
     }).join('');
   } else {
     summaryBox.classList.add('hidden');
@@ -402,8 +432,12 @@ function renderReaderContent(ch, edition) {
   // 動態生成左側大綱目錄 (TOC)
   buildTableOfContents(contentEl);
 
-  // 回到頂部
-  document.getElementById('reader-scroll-container').scrollTop = 0;
+  // 回到頂部重設進度
+  const scrollContainer = document.getElementById('reader-scroll-container');
+  scrollContainer.scrollTop = 0;
+  const bar = document.getElementById('reader-progress-bar');
+  if (bar) bar.style.width = '0%';
+  
   lucide.createIcons();
 }
 
@@ -423,9 +457,9 @@ function buildTableOfContents(contentEl) {
     const text = h.innerText.replace(/^[#\s]+/, '').trim();
     const tag = h.tagName.toLowerCase();
     
-    let indentClass = 'pl-1 font-semibold text-slate-300';
-    if (tag === 'h2') indentClass = 'pl-2 text-cyan-400/90';
-    if (tag === 'h3') indentClass = 'pl-4 text-slate-400';
+    let indentClass = 'pl-1 font-bold text-slate-200 text-xs';
+    if (tag === 'h2') indentClass = 'pl-2 text-cyan-400/90 text-xs font-semibold';
+    if (tag === 'h3') indentClass = 'pl-4 text-slate-400 text-[11px]';
 
     const a = document.createElement('a');
     a.href = `#${id}`;
