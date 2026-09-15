@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>戰情指揮中心情報看板 | Hermes Agent Tactical Terminal</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            tactical: {
+              bg: '#070a13',
+              card: '#0d121e',
+              border: '#1e293b',
+              cyan: '#00f0ff',
+              emerald: '#10b981',
+              amber: '#f59e0b',
+              purple: '#a855f7'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Marked.js (Markdown parser) & DOMPurify -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body class="bg-[#070a13] text-slate-200 min-h-screen flex flex-col bg-tactical-grid">
+
+  <!-- ==================== TOP BAR / TACTICAL HUD ==================== -->
+  <header class="sticky top-0 z-40 bg-[#070a13]/90 backdrop-blur-md border-b border-cyan-500/20 shadow-lg shadow-cyan-950/20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        
+        <!-- Left: Branding & Status -->
+        <div class="flex items-center space-x-3">
+          <div class="relative flex items-center justify-center w-10 h-10 rounded-lg bg-cyan-950/60 border border-cyan-500/40 text-cyan-400">
+            <i data-lucide="shield" class="w-5 h-5"></i>
+            <span class="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full radar-live"></span>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h1 class="text-lg font-extrabold tracking-wider text-slate-100 flex items-center gap-2">
+                戰情指揮中心 <span class="text-xs px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 text-cyan-400 font-mono">INTJ RADAR</span>
+              </h1>
+            </div>
+            <p class="text-xs text-slate-400 font-mono flex items-center gap-2 mt-0.5">
+              <span>NODE: HOME WORKSTATION</span>
+              <span class="text-slate-600">|</span>
+              <span>ENGINE: HERMES AGENT v0.21.3</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Center: Tactical Telemetry -->
+        <div class="hidden lg:flex items-center space-x-6 px-4 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-xs font-mono">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-slate-400">系統狀態:</span>
+            <span class="text-emerald-400 font-bold">DEFCON 1 ACTIVE</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <i data-lucide="radio" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span class="text-slate-400">監控情報頻道:</span>
+            <span class="text-cyan-400 font-bold" id="channel-count-badge">18 檔情報</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span class="text-slate-400">自動排程更新:</span>
+            <span class="text-amber-400 font-bold">每日 09:10</span>
+          </div>
+        </div>
+
+        <!-- Right: Real-time Clock & Refresh -->
+        <div class="flex items-center justify-between md:justify-end space-x-3">
+          <div class="text-right">
+            <div id="live-clock" class="text-sm font-bold font-mono text-cyan-300 tracking-wider">--:--:--</div>
+            <div id="live-date" class="text-[11px] font-mono text-slate-400">----/--/--</div>
+          </div>
+          <button id="btn-refresh" title="重新載入情報" class="p-2 rounded-lg bg-slate-900 border border-slate-700 hover:border-cyan-400 hover:text-cyan-300 text-slate-300 transition-colors">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== CONTROL CONSOLE & FILTERS ==================== -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4 w-full">
+    <div class="glass-panel rounded-xl p-4 flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center">
+      
+      <!-- Category Filter Pills -->
+      <div class="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 md:pb-0" id="category-filters">
+        <button data-cat="all" class="filter-btn active px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+          全部情報 (18)
+        </button>
+        <button data-cat="ai" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800">
+          AI 與前沿 (5)
+        </button>
+        <button data-cat="business" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800">
+          實業營運 (3)
+        </button>
+        <button data-cat="finance" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800">
+          金融與投資 (4)
+        </button>
+        <button data-cat="tech" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800">
+          前瞻硬體 (4)
+        </button>
+        <button data-cat="macro" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800">
+          總經與開源 (2)
+        </button>
+      </div>
+
+      <!-- Search & Type Toggle -->
+      <div class="flex items-center gap-3">
+        <!-- Type switch -->
+        <div class="flex rounded-lg bg-slate-900/80 p-0.5 border border-slate-800 text-xs font-medium">
+          <button id="type-all" class="type-btn px-2.5 py-1 rounded-md text-cyan-400 bg-slate-800">全型態</button>
+          <button id="type-daily" class="type-btn px-2.5 py-1 rounded-md text-slate-400 hover:text-slate-200">每日晨報</button>
+          <button id="type-weekly" class="type-btn px-2.5 py-1 rounded-md text-slate-400 hover:text-slate-200">產業週報</button>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="relative flex-1 md:w-64">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <input type="text" id="search-input" placeholder="搜尋情報關鍵字 / 標籤..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg bg-slate-900/90 border border-slate-800 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-400">
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== MAIN CARDS GRID ==================== -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex-1 w-full">
+    
+    <!-- Sync Notice Banner -->
+    <div class="flex items-center justify-between px-4 py-2.5 mb-6 rounded-lg bg-cyan-950/30 border border-cyan-500/20 text-xs text-cyan-300">
+      <div class="flex items-center space-x-2">
+        <i data-lucide="info" class="w-4 h-4 text-cyan-400"></i>
+        <span>作戰看板已載入當日情報矩陣。點擊任意卡片即可直接在右側或全螢幕開啟深度閱覽。</span>
+      </div>
+      <div class="font-mono text-slate-400 text-[11px]" id="last-sync-time">
+        最後同步時間: 載入中...
+      </div>
+    </div>
+
+    <!-- Cards Container -->
+    <div id="briefings-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Cards dynamically injected via JavaScript -->
+      <div class="col-span-full py-16 text-center text-slate-500 font-mono">
+        <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto text-cyan-400 mb-2"></i>
+        戰情情報矩陣連線中...
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== IN-APP TERMINAL READER (MODAL / SLIDE-OVER) ==================== -->
+  <div id="reader-overlay" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-200">
+    
+    <div class="fixed inset-y-0 right-0 max-w-5xl w-full bg-[#0b0f19] border-l border-cyan-500/30 shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300 ease-out" id="reader-panel">
+      
+      <!-- Reader Header HUD -->
+      <div class="p-4 sm:px-6 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
+        
+        <div class="flex items-center space-x-3 overflow-hidden">
+          <button id="btn-close-reader" title="返回作戰看板 (ESC)" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 transition-colors">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+          </button>
+          <div class="overflow-hidden">
+            <div class="flex items-center space-x-2">
+              <span id="reader-badge" class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-cyan-950 border border-cyan-500/40 text-cyan-300">
+                06:40 DAILY
+              </span>
+              <span id="reader-channel-name" class="text-xs text-slate-400 font-mono">AI 趨勢晨報</span>
+            </div>
+            <h2 id="reader-title" class="text-base sm:text-lg font-bold text-slate-100 truncate mt-0.5">
+              情報文章標題
+            </h2>
+          </div>
+        </div>
+
+        <!-- Action tools -->
+        <div class="flex items-center space-x-2">
+          
+          <!-- History Dropdown -->
+          <div class="relative">
+            <select id="reader-history-select" class="text-xs bg-slate-800 border border-slate-700 text-cyan-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-cyan-400">
+              <option value="latest">今日最新</option>
+            </select>
+          </div>
+
+          <!-- Prev/Next buttons -->
+          <div class="flex items-center rounded bg-slate-800 border border-slate-700 text-slate-300">
+            <button id="btn-prev-channel" title="上一篇情報 (←)" class="p-1.5 hover:text-cyan-300 border-r border-slate-700">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+            <button id="btn-next-channel" title="下一篇情報 (→)" class="p-1.5 hover:text-cyan-300">
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Copy Link -->
+          <button id="btn-copy-link" title="複製此情報網址" class="p-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-300">
+            <i data-lucide="link" class="w-4 h-4"></i>
+          </button>
+
+          <!-- Close button -->
+          <button id="btn-close-x" class="p-2 rounded bg-slate-800 hover:bg-red-950 hover:text-red-400 text-slate-400 transition-colors">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+
+        </div>
+
+      </div>
+
+      <!-- Reader Metadata Bar -->
+      <div class="px-6 py-2.5 bg-slate-950/60 border-b border-slate-800/80 flex flex-wrap items-center justify-between text-xs text-slate-400 font-mono gap-2">
+        <div class="flex items-center space-x-4">
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="calendar" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span id="reader-date">2026-09-15</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span id="reader-word-count">26,900 字</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span id="reader-read-time">預估 ~60 分鐘</span>
+          </span>
+        </div>
+        <div id="reader-tags" class="flex items-center gap-1.5 overflow-hidden">
+          <!-- Tags injected here -->
+        </div>
+      </div>
+
+      <!-- Reader Content Area (Split TOC & Body) -->
+      <div class="flex-1 overflow-y-auto flex divide-x divide-slate-800/60" id="reader-scroll-container">
+        
+        <!-- Left: Quick TOC Outline (Desktop only) -->
+        <aside class="hidden lg:block w-64 p-5 overflow-y-auto bg-slate-950/30 text-xs text-slate-400">
+          <div class="font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-1.5 font-mono">
+            <i data-lucide="list" class="w-4 h-4 text-cyan-400"></i> 本文戰情大綱
+          </div>
+          <nav id="reader-toc" class="space-y-1.5">
+            <!-- TOC links injected here -->
+          </nav>
+        </aside>
+
+        <!-- Right: Rendered Markdown Content -->
+        <article class="flex-1 p-6 sm:p-10 max-w-4xl mx-auto overflow-y-auto">
+          
+          <!-- Summary Callout Block inside reader -->
+          <div id="reader-summary-box" class="p-4 mb-8 rounded-xl bg-cyan-950/20 border border-cyan-500/30 shadow-inner">
+            <div class="flex items-center gap-2 text-cyan-300 font-bold text-sm mb-2.5 font-mono">
+              <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i> ⏱️ 30 秒作戰精華速讀 (TL;DR)
+            </div>
+            <ul id="reader-summary-list" class="space-y-2 text-xs sm:text-sm text-slate-300">
+              <!-- Summary bullets -->
+            </ul>
+          </div>
+
+          <!-- Main Markdown HTML -->
+          <div id="reader-content" class="markdown-body">
+            <!-- Markdown content dynamically rendered -->
+          </div>
+
+        </article>
+
+      </div>
+
+      <!-- Reader Footer status -->
+      <div class="p-3 bg-slate-950 border-t border-slate-800 text-[11px] font-mono text-slate-500 flex items-center justify-between px-6">
+        <span>快捷鍵: [ESC] 關閉 | [←] 上一篇 | [→] 下一篇</span>
+        <span>Obsidian Karpathy Pipeline // Input Tier</span>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="mt-auto border-t border-slate-800/80 bg-[#070a13]/80 py-6 text-center text-xs text-slate-500 font-mono">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+        <span>廖英男 INTJ 決策第二大腦 // 戰情指揮中心情報終端</span>
+      </div>
+      <div>
+        自動發布排程：每日 09:10 (Asia/Taipei) 由 HOME 端 Hermes Agent 自動推播
+      </div>
+    </div>
+  </footer>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+
+</body>
+</html>
