@@ -275,18 +275,69 @@ body {
 }
 
 /* ==================== TERMINAL READER ENHANCEMENTS ==================== */
+/* ==================== CENTERED TACTICAL CINEMA MODAL ==================== */
+/* 頂部全息掃描光束 (Cyber Beam Effect) */
+.reader-scanner-beam {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00f0ff, #ffffff, #00f0ff, transparent);
+  box-shadow: 0 0 14px #00f0ff;
+  animation: scan-beam 4.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 60;
+}
+
+@keyframes scan-beam {
+  0% { left: -60%; opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { left: 140%; opacity: 0; }
+}
+
 /* 頂部閱覽進度條 */
 #reader-progress-bar {
   height: 3px;
   background: linear-gradient(90deg, #00f0ff, #3b82f6, #a855f7);
-  box-shadow: 0 0 8px #00f0ff;
+  box-shadow: 0 0 10px #00f0ff;
   width: 0%;
   transition: width 0.1s ease;
+  z-index: 50;
+  position: relative;
 }
 
-/* 閱覽器滑動陰影 */
+/* 閱覽器全息居中艙體 */
 #reader-panel {
-  box-shadow: -15px 0 50px rgba(0, 0, 0, 0.85), -2px 0 15px rgba(0, 240, 255, 0.15);
+  box-shadow: 
+    0 0 0 1px rgba(0, 240, 255, 0.2),
+    0 30px 80px -15px rgba(0, 0, 0, 0.95),
+    0 0 50px -5px rgba(0, 240, 255, 0.2),
+    0 0 100px -20px rgba(99, 102, 241, 0.18);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#reader-panel.is-fullscreen {
+  max-width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+
+/* TOC 實時滾動高亮 */
+.toc-link {
+  transition: all 0.2s ease;
+}
+
+.toc-link.is-active {
+  color: #00f0ff !important;
+  font-weight: 700 !important;
+  background: rgba(0, 240, 255, 0.1);
+  border-left: 2px solid #00f0ff;
+  padding-left: 0.5rem;
+  border-radius: 0 4px 4px 0;
+  box-shadow: inset 4px 0 8px -2px rgba(0, 240, 255, 0.2);
 }
 
 /* Custom Scrollbars */

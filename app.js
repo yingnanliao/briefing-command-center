@@ -102,6 +102,41 @@ function setupEventListeners() {
     }
   });
 
+  // 字體大小縮放 (A- / A+)
+  let currentFontSize = 1.025;
+  const btnFontDec = document.getElementById('btn-font-dec');
+  const btnFontInc = document.getElementById('btn-font-inc');
+  if (btnFontDec && btnFontInc) {
+    btnFontDec.addEventListener('click', () => {
+      currentFontSize = Math.max(0.85, currentFontSize - 0.075);
+      const content = document.getElementById('reader-content');
+      if (content) content.style.fontSize = `${currentFontSize}rem`;
+    });
+    btnFontInc.addEventListener('click', () => {
+      currentFontSize = Math.min(1.4, currentFontSize + 0.075);
+      const content = document.getElementById('reader-content');
+      if (content) content.style.fontSize = `${currentFontSize}rem`;
+    });
+  }
+
+  // 全螢幕切換
+  const btnFullscreen = document.getElementById('btn-fullscreen');
+  if (btnFullscreen) {
+    btnFullscreen.addEventListener('click', () => {
+      const panel = document.getElementById('reader-panel');
+      panel.classList.toggle('is-fullscreen');
+      const icon = document.getElementById('fullscreen-icon');
+      if (icon) {
+        if (panel.classList.contains('is-fullscreen')) {
+          icon.setAttribute('data-lucide', 'minimize-2');
+        } else {
+          icon.setAttribute('data-lucide', 'maximize-2');
+        }
+        lucide.createIcons();
+      }
+    });
+  }
+
   // 歷史版本下拉切換
   document.getElementById('reader-history-select').addEventListener('change', (e) => {
     if (!activeChannel) return;
@@ -141,7 +176,7 @@ function setupEventListeners() {
     }
   });
 
-  // 閱覽器進度條監聽
+  // 閱覽器進度條 & TOC 實時章節追蹤 (Scroll-Spy)
   const scrollContainer = document.getElementById('reader-scroll-container');
   if (scrollContainer) {
     scrollContainer.addEventListener('scroll', () => {
@@ -150,6 +185,25 @@ function setupEventListeners() {
       const progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
       const bar = document.getElementById('reader-progress-bar');
       if (bar) bar.style.width = `${progress}%`;
+
+      // TOC Scroll-Spy 高亮聯動
+      const headings = document.querySelectorAll('#reader-content h1, #reader-content h2, #reader-content h3');
+      let currentActiveId = '';
+      headings.forEach(h => {
+        const rect = h.getBoundingClientRect();
+        if (rect.top <= 240) {
+          currentActiveId = h.id;
+        }
+      });
+      if (currentActiveId) {
+        document.querySelectorAll('#reader-toc a').forEach(a => {
+          if (a.getAttribute('href') === `#${currentActiveId}`) {
+            a.classList.add('is-active');
+          } else {
+            a.classList.remove('is-active');
+          }
+        });
+      }
     });
   }
 }
@@ -370,13 +424,14 @@ function openReaderByChannelId(channelId) {
 
   renderReaderContent(ch, activeEdition);
 
-  // 開啟 Slide-over
+  // 開啟 Centered Tactical Cinema Modal
   const overlay = document.getElementById('reader-overlay');
   const panel = document.getElementById('reader-panel');
   overlay.classList.remove('hidden');
   setTimeout(() => {
     overlay.classList.remove('opacity-0');
-    panel.classList.remove('translate-x-full');
+    panel.classList.remove('scale-95', 'opacity-0');
+    panel.classList.add('scale-100', 'opacity-100');
   }, 10);
   
   document.body.style.overflow = 'hidden';
@@ -463,7 +518,7 @@ function buildTableOfContents(contentEl) {
 
     const a = document.createElement('a');
     a.href = `#${id}`;
-    a.className = `block py-1 hover:text-cyan-300 transition-colors truncate ${indentClass}`;
+    a.className = `toc-link block py-1.5 px-2 hover:text-cyan-300 transition-colors truncate rounded ${indentClass}`;
     a.textContent = text;
     a.onclick = (e) => {
       e.preventDefault();
@@ -477,7 +532,8 @@ function closeReader() {
   const overlay = document.getElementById('reader-overlay');
   const panel = document.getElementById('reader-panel');
   overlay.classList.add('opacity-0');
-  panel.classList.add('translate-x-full');
+  panel.classList.remove('scale-100', 'opacity-100');
+  panel.classList.add('scale-95', 'opacity-0');
   
   setTimeout(() => {
     overlay.classList.add('hidden');

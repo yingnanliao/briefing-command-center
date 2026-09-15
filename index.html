@@ -194,27 +194,29 @@
 
   </main>
 
-  <!-- ==================== IN-APP TERMINAL READER (MODAL / SLIDE-OVER) ==================== -->
-  <div id="reader-overlay" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden opacity-0 transition-opacity duration-200">
+  <!-- ==================== IN-APP TERMINAL READER (CENTERED TACTICAL MODAL) ==================== -->
+  <div id="reader-overlay" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-8">
     
-    <div class="fixed inset-y-0 right-0 max-w-5xl w-full bg-[#080c18] border-l border-cyan-500/40 shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300 ease-out" id="reader-panel">
+    <div class="relative w-full max-w-6xl h-[92vh] bg-[#080c18]/95 backdrop-blur-2xl border border-cyan-500/40 rounded-2xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden transform scale-95 opacity-0 transition-all duration-300 ease-out tactical-bracket" id="reader-panel">
       
-      <!-- Reading Progress Line -->
+      <!-- Top Scanner Beam & Reading Progress Line -->
+      <div class="reader-scanner-beam"></div>
       <div id="reader-progress-bar"></div>
 
       <!-- Reader Header HUD -->
       <div class="p-4 sm:px-6 bg-slate-950/95 border-b border-slate-800 flex items-center justify-between">
         
         <div class="flex items-center space-x-3.5 overflow-hidden">
-          <button id="btn-close-reader" title="返回作戰看板 (ESC)" class="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-400 text-slate-300 hover:text-cyan-300 transition-all shadow-sm">
-            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+          <button id="btn-close-reader" title="返回作戰看板 (ESC)" class="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-400 text-slate-300 hover:text-cyan-300 transition-all shadow-sm flex items-center gap-1.5 text-xs font-mono">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">返回看板</span>
           </button>
           <div class="overflow-hidden">
             <div class="flex items-center space-x-2">
               <span id="reader-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-950 border border-cyan-500/40 text-cyan-300">
                 06:40 DAILY
               </span>
-              <span id="reader-channel-name" class="text-xs text-slate-400 font-mono">AI 趨勢晨報</span>
+              <span id="reader-channel-name" class="text-xs text-slate-400 font-mono truncate">AI 趨勢晨報</span>
             </div>
             <h2 id="reader-title" class="text-base sm:text-lg font-extrabold text-slate-100 truncate mt-0.5">
               情報文章標題
@@ -231,6 +233,17 @@
               <option value="latest">今日最新</option>
             </select>
           </div>
+
+          <!-- Font Size Adjuster -->
+          <div class="hidden sm:flex items-center rounded-lg bg-slate-900 border border-slate-800 text-slate-300 font-mono text-xs overflow-hidden">
+            <button id="btn-font-dec" title="縮小字體" class="px-2 py-1.5 hover:text-cyan-300 hover:bg-slate-800 border-r border-slate-800">A-</button>
+            <button id="btn-font-inc" title="放大字體" class="px-2 py-1.5 hover:text-cyan-300 hover:bg-slate-800">A+</button>
+          </div>
+
+          <!-- Fullscreen Toggle -->
+          <button id="btn-fullscreen" title="全螢幕切換" class="hidden sm:flex p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-cyan-400 text-slate-300 hover:text-cyan-300 transition-colors">
+            <i data-lucide="maximize-2" class="w-4 h-4" id="fullscreen-icon"></i>
+          </button>
 
           <!-- Prev/Next buttons -->
           <div class="flex items-center rounded-lg bg-slate-900 border border-slate-800 text-slate-300 overflow-hidden">
@@ -281,7 +294,7 @@
       <div class="flex-1 overflow-y-auto flex divide-x divide-slate-800/60" id="reader-scroll-container">
         
         <!-- Left: Quick TOC Outline (Desktop only) -->
-        <aside class="hidden lg:block w-64 p-5 overflow-y-auto bg-slate-950/40 text-xs text-slate-400 sticky top-0">
+        <aside class="hidden md:block w-64 xl:w-72 p-5 overflow-y-auto bg-slate-950/40 text-xs text-slate-400 sticky top-0 border-r border-slate-800/60">
           <div class="font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-1.5 font-mono">
             <i data-lucide="compass" class="w-4 h-4 text-cyan-400"></i> 戰情章節導航
           </div>
@@ -290,24 +303,26 @@
           </nav>
         </aside>
 
-        <!-- Right: Rendered Markdown Content -->
-        <article class="flex-1 p-6 sm:p-10 max-w-4xl mx-auto overflow-y-auto">
-          
-          <!-- Summary Callout Block inside reader -->
-          <div id="reader-summary-box" class="p-5 mb-8 rounded-2xl bg-gradient-to-br from-cyan-950/30 to-slate-900/60 border border-cyan-500/35 shadow-lg shadow-cyan-950/20 tactical-bracket">
-            <div class="flex items-center gap-2 text-cyan-300 font-extrabold text-sm mb-3 font-mono">
-              <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i> ⏱️ 30 秒作戰精華速讀 (TL;DR)
+        <!-- Right: Centered Rendered Markdown Content -->
+        <article class="flex-1 p-6 sm:p-10 xl:p-12 overflow-y-auto bg-slate-900/10">
+          <div class="max-w-3xl mx-auto">
+            
+            <!-- Summary Callout Block inside reader -->
+            <div id="reader-summary-box" class="p-5 mb-8 rounded-2xl bg-gradient-to-br from-cyan-950/30 to-slate-900/60 border border-cyan-500/35 shadow-lg shadow-cyan-950/20 tactical-bracket">
+              <div class="flex items-center gap-2 text-cyan-300 font-extrabold text-sm mb-3 font-mono">
+                <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i> ⏱️ 30 秒作戰精華速讀 (TL;DR)
+              </div>
+              <ul id="reader-summary-list" class="space-y-2.5 text-xs sm:text-sm text-slate-200">
+                <!-- Summary bullets -->
+              </ul>
             </div>
-            <ul id="reader-summary-list" class="space-y-2.5 text-xs sm:text-sm text-slate-200">
-              <!-- Summary bullets -->
-            </ul>
-          </div>
 
-          <!-- Main Markdown HTML -->
-          <div id="reader-content" class="markdown-body">
-            <!-- Markdown content dynamically rendered -->
-          </div>
+            <!-- Main Markdown HTML -->
+            <div id="reader-content" class="markdown-body">
+              <!-- Markdown content dynamically rendered -->
+            </div>
 
+          </div>
         </article>
 
       </div>
