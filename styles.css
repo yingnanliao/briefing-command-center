@@ -506,3 +506,33 @@ body {
   color: #e2e8f0;
   border: none;
 }
+
+/* ==================== TACTICAL AUTH & ACCESS CONTROL ==================== */
+.auth-locked {
+  filter: blur(24px) grayscale(80%) brightness(30%);
+  pointer-events: none !important;
+  user-select: none !important;
+  transition: filter 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth-shake {
+  animation: auth-shake-anim 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes auth-shake-anim {
+  10%, 90% { transform: translate3d(-2px, 0, 0); }
+  20%, 80% { transform: translate3d(4px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+  40%, 60% { transform: translate3d(6px, 0, 0); }
+}
+
+#auth-modal {
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+#auth-modal.auth-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+

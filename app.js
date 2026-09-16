@@ -13,10 +13,18 @@ let activeEdition = null;
 document.addEventListener('DOMContentLoaded', async () => {
   initClock();
   setupEventListeners();
-  await loadBriefingsData();
+  setupAuthSystem();
   
-  // 檢查 URL Hash 深層連結 (例如 #ai-daily)
-  handleHashNavigation();
+  // 檢查權限 Session
+  const session = window.tacticalAuth ? window.tacticalAuth.checkSession() : null;
+  if (session) {
+    unlockTerminal(session);
+    await loadBriefingsData();
+    handleHashNavigation();
+  } else {
+    lockTerminal();
+  }
+  
   window.addEventListener('hashchange', handleHashNavigation);
 });
 
@@ -578,3 +586,178 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+// ==================== TACTICAL AUTH & ACCESS CONTROL SYSTEM ====================
+
+function setupAuthSystem() {
+  const authModal = document.getElementById('auth-modal');
+  const authForm = document.getElementById('auth-form');
+  const alertBox = document.getElementById('auth-alert');
+  const alertMsg = document.getElementById('auth-alert-msg');
+  const passcodeEl = document.getElementById('auth-passcode');
+  const rememberEl = document.getElementById('auth-remember');
+  const btnLogout = document.getElementById('btn-logout');
+
+  // 表單送出 (通行密碼驗證)
+  if (authForm) {
+    authForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const code = passcodeEl ? passcodeEl.value : '';
+      const remember = rememberEl ? rememberEl.checked : true;
+      
+      const res = await window.tacticalAuth.loginWithPassword('指揮官', code, remember);
+      if (res.success) {
+        hideAuthAlert();
+        unlockTerminal(res.user);
+        if (!allBriefingsData) {
+          await loadBriefingsData();
+          handleHashNavigation();
+        }
+      } else {
+        showAuthAlert(res.message);
+        triggerAuthShake();
+      }
+    });
+  }
+
+  // 登出 / 鎖定按鈕
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      if (confirm('確認鎖定戰情終端並安全登出？')) {
+        window.tacticalAuth.logout();
+        lockTerminal();
+        // 如果正在開閱讀器，順便關閉
+        closeReader();
+      }
+    });
+  }
+}
+
+// 解鎖終端
+function unlockTerminal(user) {
+  const authModal = document.getElementById('auth-modal');
+  const mainWrapper = document.getElementById('main-content-wrapper');
+  const commanderBadge = document.getElementById('commander-badge');
+  const commanderName = document.getElementById('commander-name');
+  const commanderAvatar = document.getElementById('commander-avatar');
+  const commanderDefaultIcon = document.getElementById('commander-default-icon');
+  const btnLogout = document.getElementById('btn-logout');
+
+  // 隱藏登入 Modal
+  if (authModal) {
+    authModal.classList.add('auth-hidden');
+  }
+
+  // 移除主介面模糊效果
+  if (mainWrapper) {
+    mainWrapper.classList.remove('auth-locked');
+  }
+
+  // 顯示指揮官徽章與登出按鈕
+  if (commanderBadge && user) {
+    commanderBadge.classList.remove('hidden');
+    commanderBadge.classList.add('flex');
+    if (commanderName) commanderName.textContent = user.name || '廖英男';
+
+    if (user.avatar && commanderAvatar) {
+      commanderAvatar.src = user.avatar;
+      commanderAvatar.classList.remove('hidden');
+      if (commanderDefaultIcon) commanderDefaultIcon.classList.add('hidden');
+    } else {
+      if (commanderAvatar) commanderAvatar.classList.add('hidden');
+      if (commanderDefaultIcon) commanderDefaultIcon.classList.remove('hidden');
+    }
+  }
+
+  if (btnLogout) {
+    btnLogout.classList.remove('hidden');
+  }
+
+  lucide.createIcons();
+}
+
+// 鎖定終端
+function lockTerminal() {
+  const authModal = document.getElementById('auth-modal');
+  const mainWrapper = document.getElementById('main-content-wrapper');
+  const commanderBadge = document.getElementById('commander-badge');
+  const btnLogout = document.getElementById('btn-logout');
+  const passcodeEl = document.getElementById('auth-passcode');
+
+  // 顯示登入 Modal
+  if (authModal) {
+    authModal.classList.remove('auth-hidden');
+  }
+
+  // 模糊主畫面，阻止任何點擊與窺視
+  if (mainWrapper) {
+    mainWrapper.classList.add('auth-locked');
+  }
+
+  // 隱藏指揮官徽章與登出按鈕
+  if (commanderBadge) {
+    commanderBadge.classList.add('hidden');
+    commanderBadge.classList.remove('flex');
+  }
+  if (btnLogout) {
+    btnLogout.classList.add('hidden');
+  }
+
+  if (passcodeEl) {
+    passcodeEl.value = '';
+  }
+
+  hideAuthAlert();
+  lucide.createIcons();
+}
+
+// 顯示錯誤警報
+function showAuthAlert(msg) {
+  const alertBox = document.getElementById('auth-alert');
+  const alertMsg = document.getElementById('auth-alert-msg');
+  if (alertBox && alertMsg) {
+    alertMsg.textContent = msg;
+    alertBox.classList.remove('hidden');
+    lucide.createIcons();
+  }
+}
+
+// 隱藏警報
+function hideAuthAlert() {
+  const alertBox = document.getElementById('auth-alert');
+  if (alertBox) {
+    alertBox.classList.add('hidden');
+  }
+}
+
+// 錯誤震動動畫
+function triggerAuthShake() {
+  const modalBox = document.querySelector('#auth-modal > div');
+  if (modalBox) {
+    modalBox.classList.remove('auth-shake');
+    void modalBox.offsetWidth; // 強制重繪
+    modalBox.classList.add('auth-shake');
+  }
+}
+
+// 全域 Google GIS 回調函式
+window.handleGoogleSignIn = async function(response) {
+  if (!response || !response.credential) {
+    showAuthAlert('Google 驗證憑證傳遞失敗');
+    return;
+  }
+
+  const res = window.tacticalAuth.handleGoogleCredential(response.credential);
+  if (res.success) {
+    hideAuthAlert();
+    unlockTerminal(res.user);
+    if (!allBriefingsData) {
+      await loadBriefingsData();
+      handleHashNavigation();
+    }
+  } else {
+    showAuthAlert(res.message);
+    triggerAuthShake();
+  }
+};
+
