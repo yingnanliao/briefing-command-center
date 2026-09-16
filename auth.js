@@ -7,7 +7,7 @@ const AUTH_CONFIG = {
     'yingnanliao@gmail.com'
   ],
   // Google OAuth 2.0 Client ID (支援 Google Identity Services)
-  GOOGLE_CLIENT_ID: '1064834171097-al7n0t10o4ohokurck0fpf7j4iucnj0h.apps.googleusercontent.com',
+  GOOGLE_CLIENT_ID: '1064834171097-vnm34spgvl1lr63iemi54a2dsvfm6jmc.apps.googleusercontent.com',
   // 戰情通行憑證 (加鹽 SHA-256 雜湊，安全無明文)
   PASSWORD_SALT: 'intj_radar_salt_2026',
   PASSWORD_HASH: '73725d9011b474d427dfa83624892c42c91026dc2f9173be0e54caa2820c80a2', // 預設: intj2026
