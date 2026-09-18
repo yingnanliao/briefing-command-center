@@ -20,10 +20,19 @@ body {
   color: #e2e8f0;
   overflow-x: hidden;
   position: relative;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-mono {
   font-family: 'JetBrains Mono', monospace;
+}
+
+/* 標題強化：清晰銳利、無橫紋干擾 */
+h1, h2, h3, h4, h5, h6 {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ==================== AMBIENT LIGHT & CYBER MATRIX ==================== */
@@ -82,15 +91,9 @@ body {
     linear-gradient(to bottom, rgba(0, 240, 255, 0.035) 1px, transparent 1px);
 }
 
-/* 掃描線光柵效果 (微弱精緻) */
+/* 掃描線光柵效果 (已完全關閉以保持字體清晰銳利) */
 .scanline-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.015), rgba(0, 255, 0, 0.005), rgba(0, 0, 255, 0.015));
-  background-size: 100% 3px, 6px 100%;
-  opacity: 0.6;
+  display: none !important;
 }
 
 /* ==================== GLASSMORPHISM 2.0 & SPOTLIGHT ==================== */
