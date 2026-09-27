@@ -188,6 +188,18 @@ CHANNELS_CONFIG = [
         "accent_color": "#d97706",
         "badge": "每日 07:50"
     },
+    {
+        "id": "opencode-usage",
+        "name": "OpenCode 用量日報",
+        "category": "macro",
+        "category_name": "總經與科技生態",
+        "type": "daily",
+        "time_slot": "每日更新",
+        "folder": DAILY_DIR / "OpenCode用量",
+        "icon": "bar-chart-4",
+        "accent_color": "#a855f7",
+        "badge": "每日用量"
+    },
 
     # 每週產業週報系列 (4)
     {
@@ -306,6 +318,27 @@ def extract_30s_summary_bullets(content):
             if paragraphs:
                 bullets = [paragraphs[0][:280] + ("..." if len(paragraphs[0]) > 280 else "")]
     
+    # OpenCode 用量特殊摘要提取 (針對額度消耗、昨日統計、本月進度)
+    if not bullets and ("OpenCode" in content or "額度消耗" in content):
+        # 抓取本月消耗與週窗
+        month_m = re.search(r'本月[^\n]*\n+([^\n|]+)', content)
+        if month_m:
+            bullets.append(f"📊 本月累積：{month_m.group(1).strip()}")
+        week_m = re.search(r'週窗[^\n]*\n+([^\n|]+)', content)
+        if week_m:
+            bullets.append(f"📅 週窗用量：{week_m.group(1).strip()}")
+        # 抓取合計列
+        total_m = re.search(r'\|\s*\*\*合計\*\*\s*\|\s*\*\*(\d+)\*\*\s*\|\s*([^|]+)\|\s*([^|]+)\|\s*[^|]+\|\s*\*\*([^\*|]+)\*\*', content)
+        if total_m:
+            bullets.append(f"⚡ 昨日呼叫：{total_m.group(1)} 次（in: {total_m.group(2).strip()} / out: {total_m.group(3).strip()}，消耗 ${total_m.group(4).strip()}）")
+        elif "合計" in content:
+            for line in content.split('\n'):
+                if "合計" in line and "|" in line:
+                    parts = [p.strip() for p in line.split('|') if p.strip()]
+                    if len(parts) >= 6:
+                        bullets.append(f"⚡ 昨日合計：呼叫 {parts[1]} 次，消耗 ${parts[5]}")
+                        break
+
     # Secondary Fallback: 尋找前 5 個條列項目
     if not bullets:
         all_bullets = re.findall(r'^[-\*]\s+(.*)$', content, flags=re.MULTILINE)

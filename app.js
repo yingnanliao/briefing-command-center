@@ -236,6 +236,9 @@ async function loadBriefingsData(forceBust = false) {
       countBadge.textContent = `${allBriefingsData.total_channels} 檔情報 (${allBriefingsData.target_date})`;
     }
 
+    // 動態更新分類統計數量
+    updateCategoryCounts();
+
     applyFiltersAndRender();
   } catch (err) {
     console.error('載入情報資料失敗:', err);
@@ -248,6 +251,37 @@ async function loadBriefingsData(forceBust = false) {
     `;
     lucide.createIcons();
   }
+}
+
+// 動態更新分類統計數量
+function updateCategoryCounts() {
+  if (!allBriefingsData || !allBriefingsData.channels) return;
+  const channels = allBriefingsData.channels;
+  
+  const counts = {
+    all: channels.length,
+    ai: channels.filter(c => c.category === 'ai').length,
+    business: channels.filter(c => c.category === 'business').length,
+    finance: channels.filter(c => c.category === 'finance').length,
+    tech: channels.filter(c => c.category === 'tech').length,
+    macro: channels.filter(c => c.category === 'macro').length
+  };
+
+  const labels = {
+    all: '全部情報',
+    ai: 'AI 與前沿',
+    business: '實業營運',
+    finance: '金融與投資',
+    tech: '前瞻硬體',
+    macro: '總經與生態'
+  };
+
+  document.querySelectorAll('#category-filters .filter-btn').forEach(btn => {
+    const cat = btn.dataset.cat;
+    if (counts[cat] !== undefined) {
+      btn.textContent = `${labels[cat] || cat} (${counts[cat]})`;
+    }
+  });
 }
 
 // ==================== 篩選與渲染卡片矩陣 ====================
