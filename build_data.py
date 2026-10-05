@@ -4,11 +4,16 @@
 萃取 14 檔每日晨報 + 4 檔每週週報之 Frontmatter、30秒精簡摘要、完整內容與歷史期數。
 """
 import os
+import sys
 import re
 import json
 import yaml
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
+
+# 確保 Windows 控制台輸出不因 cp950 崩潰
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 # 台灣時區 UTC+8
 TAIPEI_TZ = timezone(timedelta(hours=8))
@@ -481,19 +486,56 @@ def build_all_channels():
             
         channels_output.append(channel_data)
 
+    # 彙整 YouTube 影音晨報中所引用的單篇獨立剪藏筆記（全文內嵌，支援點擊直接開展深入閱覽）
+    linked_docs = {}
+    clippings_root = OBSIDIAN_ROOT / "Clippings"
+    youtube_ch = next((c for c in channels_output if c['id'] == 'youtube'), None)
+    if youtube_ch:
+        # 蒐集最新刊以及歷史期數中的所有 Wiki Links
+        all_yt_editions = []
+        if youtube_ch.get('latest'):
+            all_yt_editions.append(youtube_ch['latest'])
+        all_yt_editions.extend(youtube_ch.get('history', []))
+        
+        for ed in all_yt_editions:
+            raw_c = ed.get('content', '')
+            found_links = re.findall(r'\[\[(.*?)\]\]', raw_c)
+            for link_str in found_links:
+                clean_target = link_str.split('|')[0].strip()
+                # 排除晨報索引、每日筆記與待整理
+                if clean_target in ['待整理', 'OpenCode Go'] or clean_target.startswith('每日筆記'):
+                    continue
+                if clean_target in linked_docs:
+                    continue
+                
+                # 在 Clippings 目錄尋找對應的 md 檔案
+                matched_files = list(clippings_root.glob(f"*{clean_target}*.md"))
+                if not matched_files:
+                    # 去除前綴或特殊符號再嘗試匹配
+                    simple_name = re.sub(r'^\d+｜', '', clean_target)
+                    matched_files = list(clippings_root.glob(f"*{simple_name[:20]}*.md"))
+                
+                if matched_files:
+                    try:
+                        doc_item = parse_file(matched_files[0])
+                        linked_docs[clean_target] = doc_item
+                    except Exception as e:
+                        print(f"Error parsing linked doc {matched_files[0]}: {e}")
+
     output = {
         "generated_at": now_taipei,
         "target_date": today_str,
         "total_channels": len(channels_output),
         "active_channels": total_briefings_count,
-        "channels": channels_output
+        "channels": channels_output,
+        "linked_docs": linked_docs
     }
     
     out_file = PROJECT_DIR / "data" / "briefings.json"
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
         
-    print(f"✅ Successfully compiled {total_briefings_count}/{len(channels_output)} channels into {out_file}")
+    print(f"✅ Successfully compiled {total_briefings_count}/{len(channels_output)} channels and {len(linked_docs)} linked docs into {out_file}")
     return output
 
 if __name__ == "__main__":

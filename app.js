@@ -8,6 +8,7 @@ let currentSearchQuery = '';
 let activeChannelIndex = -1;
 let activeChannel = null;
 let activeEdition = null;
+let readerHistoryStack = [];
 
 // ==================== 初始化與事件監聽 ====================
 document.addEventListener('DOMContentLoaded', async () => {
@@ -176,7 +177,11 @@ function setupEventListeners() {
     if (!readerOpen) return;
     
     if (e.key === 'Escape') {
-      closeReader();
+      if (readerHistoryStack.length > 0) {
+        navigateBackToParentBriefing();
+      } else {
+        closeReader();
+      }
     } else if (e.key === 'ArrowLeft') {
       navigatePrevChannel();
     } else if (e.key === 'ArrowRight') {
@@ -447,6 +452,10 @@ function openReaderByChannelId(channelId) {
     
   if (!ch || !ch.latest) return;
   
+  // 清空單篇下鑽堆疊與麵包屑
+  readerHistoryStack = [];
+  updateReaderBreadcrumb();
+
   activeChannelIndex = chIndex !== -1 ? chIndex : 0;
   activeChannel = ch;
   activeEdition = ch.latest;
@@ -477,6 +486,38 @@ function openReaderByChannelId(channelId) {
   }, 10);
   
   document.body.style.overflow = 'hidden';
+}
+
+// 輔助函式：轉換 Obsidian [[Wiki Links]] 為 Markdown 錨點超連結
+function parseObsidianWikiLinks(rawMarkdown) {
+  if (!rawMarkdown) return '';
+  return rawMarkdown.replace(/\[\[(.*?)\]\]/g, (match, inner) => {
+    let target = inner;
+    let label = inner;
+    if (inner.includes('|')) {
+      const parts = inner.split('|');
+      target = parts[0].trim();
+      label = parts.slice(1).join('|').trim();
+    } else {
+      target = target.trim();
+      label = target;
+    }
+    return `[${label}](#wikilink:${encodeURIComponent(target)})`;
+  });
+}
+
+function bindWikiLinkHandlers(container) {
+  if (!container) return;
+  container.querySelectorAll('a[href^="#wikilink:"]').forEach(a => {
+    a.classList.add('wiki-link');
+    const hrefVal = a.getAttribute('href') || '';
+    const rawTarget = decodeURIComponent(hrefVal.replace('#wikilink:', ''));
+    a.setAttribute('data-wikitarget', rawTarget);
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      openLinkedDoc(rawTarget);
+    });
+  });
 }
 
 function renderReaderContent(ch, edition) {
@@ -514,9 +555,10 @@ function renderReaderContent(ch, edition) {
     summaryBox.classList.add('hidden');
   }
 
-  // Markdown 全文渲染
+  // Markdown 全文渲染（含 Wiki Links 支援）
   const contentEl = document.getElementById('reader-content');
-  const cleanMarkdown = edition.content || '無內文資料';
+  let cleanMarkdown = edition.content || '無內文資料';
+  cleanMarkdown = parseObsidianWikiLinks(cleanMarkdown);
   
   // 設定 marked
   marked.setOptions({
@@ -526,8 +568,14 @@ function renderReaderContent(ch, edition) {
   
   contentEl.innerHTML = DOMPurify.sanitize(marked.parse(cleanMarkdown));
 
+  // 綁定 Wiki Links 點擊下鑽事件
+  bindWikiLinkHandlers(contentEl);
+
   // 動態生成左側大綱目錄 (TOC)
   buildTableOfContents(contentEl);
+
+  // 清空或更新麵包屑
+  updateReaderBreadcrumb();
 
   // 回到頂部重設進度
   const scrollContainer = document.getElementById('reader-scroll-container');
@@ -536,6 +584,212 @@ function renderReaderContent(ch, edition) {
   if (bar) bar.style.width = '0%';
   
   lucide.createIcons();
+}
+
+// 點擊 Wiki Link 下鑽開啟單篇詳細筆記 (Drill-down to Linked Note)
+function openLinkedDoc(targetKey) {
+  if (!allBriefingsData) return;
+  
+  const linkedDocs = allBriefingsData.linked_docs || {};
+  
+  // 1. 精準比對
+  let doc = linkedDocs[targetKey];
+  let docKey = targetKey;
+
+  // 2. 模糊比對（容錯標題、去底線、包含比對）
+  if (!doc) {
+    const keys = Object.keys(linkedDocs);
+    const foundKey = keys.find(k => {
+      if (k === targetKey || k.includes(targetKey) || targetKey.includes(k)) return true;
+      const d = linkedDocs[k];
+      if (d && d.title && (d.title.includes(targetKey) || targetKey.includes(d.title))) return true;
+      return false;
+    });
+    if (foundKey) {
+      doc = linkedDocs[foundKey];
+      docKey = foundKey;
+    }
+  }
+
+  // 3. 若目標是頻道而非單篇筆記，嘗試切換至該頻道
+  if (!doc) {
+    const targetChannel = allBriefingsData.channels.find(c => 
+      c.id === targetKey || c.name === targetKey || c.name.includes(targetKey) || targetKey.includes(c.name)
+    );
+    if (targetChannel) {
+      openReaderByChannelId(targetChannel.id);
+      return;
+    }
+    
+    // 4. 若快取中無此單篇筆記，給予戰情提示
+    showTacticalToast(`《${targetKey}》單篇情報未在快取中（可能為外部索引筆記或尚未抓取）。`);
+    return;
+  }
+
+  // 將當前狀態推進導航堆疊 (Breadcrumb History Stack)
+  const scrollContainer = document.getElementById('reader-scroll-container');
+  readerHistoryStack.push({
+    channel: activeChannel,
+    edition: activeEdition,
+    scrollPos: scrollContainer ? scrollContainer.scrollTop : 0
+  });
+
+  // 渲染 Linked Doc 單篇內容
+  renderLinkedDocView(doc, docKey);
+}
+
+// 渲染單篇深度筆記視圖
+function renderLinkedDocView(doc, docKey) {
+  // 頂部 HUD 資訊
+  document.getElementById('reader-badge').textContent = '🎬 影音單篇詳報';
+  document.getElementById('reader-channel-name').textContent = `${activeChannel ? activeChannel.name : 'YouTube 頻道監控'} · 單篇深度情報`;
+  document.getElementById('reader-title').textContent = doc.title || docKey;
+  document.getElementById('reader-date').textContent = doc.date || (activeEdition ? activeEdition.date : '');
+  document.getElementById('reader-word-count').textContent = `${(doc.word_count || 0).toLocaleString()} 字`;
+  document.getElementById('reader-read-time').textContent = `預估 ~${doc.read_time_minutes || Math.max(1, Math.round((doc.word_count || 0) / 450))} 分鐘`;
+
+  // 標籤
+  const tagsContainer = document.getElementById('reader-tags');
+  const tags = doc.tags || [];
+  tagsContainer.innerHTML = tags.map(t => 
+    `<span class="px-2.5 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-mono">#${t}</span>`
+  ).join('');
+
+  // 歷期選單切換為單篇說明
+  const historySelect = document.getElementById('reader-history-select');
+  if (historySelect) {
+    historySelect.innerHTML = `<option value="linked">單篇專題詳報</option>`;
+  }
+
+  // 30 秒重點精華盒子
+  const summaryBox = document.getElementById('reader-summary-box');
+  const summaryList = document.getElementById('reader-summary-list');
+  const bullets = doc.summary_bullets || [];
+  if (bullets.length > 0) {
+    summaryBox.classList.remove('hidden');
+    summaryList.innerHTML = bullets.map(b => {
+      let text = escapeHtml(b);
+      text = text.replace(/\[5★\]/g, '<span class="badge-5star">5★</span>');
+      text = text.replace(/\[4★\]/g, '<span class="badge-4star">4★</span>');
+      text = text.replace(/\[3★\]/g, '<span class="badge-3star">3★</span>');
+      return `<li class="flex items-start gap-2.5"><span class="text-amber-400 font-bold text-sm select-none">▸</span><span class="leading-relaxed">${text}</span></li>`;
+    }).join('');
+  } else {
+    summaryBox.classList.add('hidden');
+  }
+
+  // Markdown 全文渲染（含 Wiki Links 支援）
+  const contentEl = document.getElementById('reader-content');
+  let cleanMarkdown = doc.content || '無內文資料';
+  cleanMarkdown = parseObsidianWikiLinks(cleanMarkdown);
+
+  marked.setOptions({
+    gfm: true,
+    breaks: true
+  });
+  
+  contentEl.innerHTML = DOMPurify.sanitize(marked.parse(cleanMarkdown));
+
+  // 綁定 Wiki Links 點擊下鑽事件
+  bindWikiLinkHandlers(contentEl);
+
+  // 動態生成左側大綱目錄 (TOC)
+  buildTableOfContents(contentEl);
+
+  // 更新麵包屑導航
+  updateReaderBreadcrumb(doc.title || docKey);
+
+  // 滾動回頂部
+  const scrollContainer = document.getElementById('reader-scroll-container');
+  if (scrollContainer) scrollContainer.scrollTop = 0;
+  const bar = document.getElementById('reader-progress-bar');
+  if (bar) bar.style.width = '0%';
+  
+  lucide.createIcons();
+}
+
+// 麵包屑導航更新與返回
+function updateReaderBreadcrumb(currentDocTitle) {
+  const breadcrumbEl = document.getElementById('reader-breadcrumb');
+  if (!breadcrumbEl) return;
+  
+  if (readerHistoryStack.length === 0 || !currentDocTitle) {
+    breadcrumbEl.classList.add('hidden');
+    breadcrumbEl.innerHTML = '';
+    return;
+  }
+  
+  const parent = readerHistoryStack[readerHistoryStack.length - 1];
+  const parentName = parent.channel ? parent.channel.name : '上一層晨報';
+  
+  breadcrumbEl.innerHTML = `
+    <button type="button" id="btn-reader-breadcrumb-back" class="flex items-center gap-1 text-cyan-400 hover:text-cyan-200 transition-colors font-bold group">
+      <i data-lucide="arrow-left" class="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform"></i>
+      <span>返回 ${escapeHtml(parentName)}</span>
+    </button>
+    <span class="text-slate-600">/</span>
+    <span class="text-slate-300 truncate max-w-[200px] sm:max-w-[320px]" title="${escapeHtml(currentDocTitle)}">
+      ${escapeHtml(currentDocTitle)}
+    </span>
+  `;
+  breadcrumbEl.classList.remove('hidden');
+  
+  const backBtn = document.getElementById('btn-reader-breadcrumb-back');
+  if (backBtn) {
+    backBtn.onclick = (e) => {
+      e.preventDefault();
+      navigateBackToParentBriefing();
+    };
+  }
+  lucide.createIcons();
+}
+
+// 從單篇深度筆記返回上一層晨報
+function navigateBackToParentBriefing() {
+  if (readerHistoryStack.length === 0) return;
+  const prev = readerHistoryStack.pop();
+  
+  activeChannel = prev.channel;
+  activeEdition = prev.edition;
+
+  // 恢復歷期選單
+  const historySelect = document.getElementById('reader-history-select');
+  if (historySelect && activeChannel) {
+    historySelect.innerHTML = `<option value="latest">今日最新刊 (${activeChannel.latest.date})</option>`;
+    if (activeChannel.history && activeChannel.history.length > 0) {
+      activeChannel.history.forEach(h => {
+        historySelect.innerHTML += `<option value="${h.date}">歷期: ${h.date} (${h.word_count.toLocaleString()} 字)</option>`;
+      });
+    }
+    historySelect.value = activeEdition ? activeEdition.date : 'latest';
+  }
+
+  renderReaderContent(activeChannel, activeEdition);
+  updateReaderBreadcrumb();
+
+  if (prev.scrollPos) {
+    setTimeout(() => {
+      const scrollContainer = document.getElementById('reader-scroll-container');
+      if (scrollContainer) scrollContainer.scrollTop = prev.scrollPos;
+    }, 50);
+  }
+}
+
+// 戰情 HUD Toast 提示訊息
+function showTacticalToast(message) {
+  let toast = document.getElementById('tactical-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'tactical-toast';
+    toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-slate-900/95 border border-cyan-500/50 text-cyan-300 font-mono text-xs shadow-2xl shadow-cyan-950/60 transition-all duration-300 transform translate-y-12 opacity-0 flex items-center gap-2.5';
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = `<i data-lucide="info" class="w-4 h-4 text-cyan-400"></i> <span>${escapeHtml(message)}</span>`;
+  lucide.createIcons();
+  toast.classList.remove('translate-y-12', 'opacity-0');
+  setTimeout(() => {
+    toast.classList.add('translate-y-12', 'opacity-0');
+  }, 3500);
 }
 
 function buildTableOfContents(contentEl) {
@@ -571,6 +825,9 @@ function buildTableOfContents(contentEl) {
 }
 
 function closeReader() {
+  readerHistoryStack = [];
+  updateReaderBreadcrumb();
+
   const overlay = document.getElementById('reader-overlay');
   const panel = document.getElementById('reader-panel');
   overlay.classList.add('opacity-0');

@@ -539,3 +539,51 @@ h1, h2, h3, h4, h5, h6 {
   pointer-events: none;
 }
 
+/* ==================== WIKI-LINKS & DEEP DRILL-DOWN STYLES ==================== */
+.markdown-body a.wiki-link {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.markdown-body a.wiki-link:hover {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: #00f0ff;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.markdown-body a.wiki-link::before {
+  content: '📄';
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+/* Breadcrumb Navigation for Drill-Down Notes */
+#reader-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+}
+
+#reader-breadcrumb button {
+  transition: all 0.2s ease;
+}
+
+#reader-breadcrumb button:hover {
+  color: #00f0ff;
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+}
+
+
