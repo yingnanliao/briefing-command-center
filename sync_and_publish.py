@@ -2,7 +2,7 @@
 """
 戰情看板同步與發布腳本 (Sync & Publish Pipeline)
 每日 09:10 由 Hermes Agent 排程或手動呼叫：
-1. 執行 build_data.py 提取當日最新 15 檔晨報 + 4 檔週報（共 19 檔情報）
+1. 執行 build_data.py 提取當日最新 16 檔晨報 + 4 檔週報（共 20 檔情報）
 2. 自動 Git Commit & Push 至 GitHub Pages 儲存庫
 """
 import os

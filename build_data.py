@@ -19,7 +19,19 @@ DAILY_DIR = OBSIDIAN_ROOT / "Clippings" / "晨報"
 WEEKLY_DIR = OBSIDIAN_ROOT / "Clippings" / "週報"
 
 CHANNELS_CONFIG = [
-    # 每日晨報系列 (14)
+    # 每日晨報系列 (16)
+    {
+        "id": "youtube",
+        "name": "YouTube 影音監控晨報",
+        "category": "ai",
+        "category_name": "AI 與前沿",
+        "type": "daily",
+        "time_slot": "05:10",
+        "folder": DAILY_DIR / "YouTube 監控晨報",
+        "icon": "youtube",
+        "accent_color": "#ff0000",
+        "badge": "每日 05:10"
+    },
     {
         "id": "huggingface",
         "name": "HuggingFace 趨勢日報",
@@ -338,6 +350,21 @@ def extract_30s_summary_bullets(content):
                     if len(parts) >= 6:
                         bullets.append(f"⚡ 昨日合計：呼叫 {parts[1]} 次，消耗 ${parts[5]}")
                         break
+
+    # YouTube 影音監控晨報特殊摘要提取（從今日影音情報總覽矩陣表格抓取各頻道精選標題）
+    if not bullets and ("YouTube 影音監控晨報" in content or "今日影音情報總覽矩陣" in content):
+        table_lines = [l for l in content.split('\n') if l.strip().startswith('|') and not l.strip().startswith('| :') and not l.strip().startswith('| 頻道名稱')]
+        for row in table_lines:
+            parts = [p.strip() for p in row.split('|') if p.strip()]
+            if len(parts) >= 2:
+                ch_name = parts[0].replace('**', '').strip()
+                # 抽取標題文字 [標題](url)
+                video_title_m = re.search(r'\[([^\]]+)\]', parts[1])
+                video_title = video_title_m.group(1).strip() if video_title_m else parts[1].strip()
+                if ch_name and video_title:
+                    bullets.append(f"🎬 **{ch_name}**：{video_title}")
+            if len(bullets) >= 5:
+                break
 
     # Secondary Fallback: 尋找前 5 個條列項目
     if not bullets:
