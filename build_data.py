@@ -217,6 +217,18 @@ CHANNELS_CONFIG = [
         "accent_color": "#a855f7",
         "badge": "每日用量"
     },
+    {
+        "id": "free-models",
+        "name": "免費模型監控日報",
+        "category": "ai",
+        "category_name": "AI 與前沿",
+        "type": "daily",
+        "time_slot": "08:20",
+        "folder": DAILY_DIR / "免費模型監控",
+        "icon": "layers",
+        "accent_color": "#10b981",
+        "badge": "每日 08:20"
+    },
 
     # 每週產業週報系列 (4)
     {
@@ -370,6 +382,24 @@ def extract_30s_summary_bullets(content):
                     bullets.append(f"🎬 **{ch_name}**：{video_title}")
             if len(bullets) >= 5:
                 break
+
+    # 免費/測試模型監控特殊摘要提取
+    if not bullets and ("免費" in content or "測試模型" in content or "快照" in content):
+        snapshot_m = re.search(r'\*\*本輪快照\*\*[：:]\s*([^\n]+)', content)
+        if snapshot_m:
+            bullets.append(f"🎯 本輪快照：{snapshot_m.group(1).strip()}")
+        source_m = re.search(r'\*\*資料源\*\*[：:]\s*([^\n]+)', content)
+        if source_m:
+            bullets.append(f"📡 資料源：{source_m.group(1).strip()}")
+        status_m = re.search(r'(本次無新模型[^\n]+)', content)
+        if status_m:
+            bullets.append(f"📋 動態：{status_m.group(1).strip()}")
+        total_m = re.search(r'快照總數[：:]\s*([^\n]+)', content)
+        if total_m:
+            bullets.append(f"📦 庫存清單：{total_m.group(1).strip()}")
+        sample_m = re.search(r'庫存樣本[：:]\s*([^\n]+)', content)
+        if sample_m:
+            bullets.append(f"🔍 庫存抽樣：{sample_m.group(1).strip()}")
 
     # Secondary Fallback: 尋找前 5 個條列項目
     if not bullets:
