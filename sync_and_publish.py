@@ -24,7 +24,7 @@ def run_cmd(cmd, cwd=PROJECT_DIR):
             print(f"Output: {result.stdout.strip()}")
     return result
 
-VERSION = "v0.22.4"   # 由 sync_and_publish.py 每次跑時自動更新此註解與 index.html
+VERSION = "v0.22.5"   # 由 sync_and_publish.py 每次跑時自動更新此註解與 index.html
 
 
 def sync_engine_version():
