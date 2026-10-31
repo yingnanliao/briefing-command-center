@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 戰情指揮中心情報建置引擎 (Briefing Command Center Data Builder)
-萃取 14 檔每日晨報 + 4 檔每週週報之 Frontmatter、30秒精簡摘要、完整內容與歷史期數。
+萃取 21 檔每日晨報 + 4 檔每週週報之 Frontmatter、30秒精簡摘要、完整內容與歷史期數（共 25 檔情報流）。
 """
 import os
 import sys
@@ -229,6 +229,54 @@ CHANNELS_CONFIG = [
         "accent_color": "#10b981",
         "badge": "每日 08:20"
     },
+    {
+        "id": "passive-income",
+        "name": "被動收入與FIRE晨報",
+        "category": "finance",
+        "category_name": "金融與投資",
+        "type": "daily",
+        "time_slot": "每日更新",
+        "folder": DAILY_DIR / "被動收入晨報",
+        "icon": "piggy-bank",
+        "accent_color": "#10b981",
+        "badge": "每日晨報"
+    },
+    {
+        "id": "startup-opportunities",
+        "name": "新創與副業機會晨報",
+        "category": "business",
+        "category_name": "實業營運",
+        "type": "daily",
+        "time_slot": "每日更新",
+        "folder": DAILY_DIR / "新創機會晨報",
+        "icon": "rocket",
+        "accent_color": "#f59e0b",
+        "badge": "每日晨報"
+    },
+    {
+        "id": "business-models",
+        "name": "商業模式拆解晨報",
+        "category": "business",
+        "category_name": "實業營運",
+        "type": "daily",
+        "time_slot": "每日更新",
+        "folder": DAILY_DIR / "商業模式晨報",
+        "icon": "briefcase",
+        "accent_color": "#6366f1",
+        "badge": "每日晨報"
+    },
+    {
+        "id": "taiwan-biz",
+        "name": "台灣本地商機晨報",
+        "category": "business",
+        "category_name": "實業營運",
+        "type": "daily",
+        "time_slot": "每日更新",
+        "folder": DAILY_DIR / "台灣商機晨報",
+        "icon": "store",
+        "accent_color": "#06b6d4",
+        "badge": "每日晨報"
+    },
 
     # 每週產業週報系列 (4)
     {
@@ -323,8 +371,8 @@ def extract_30s_summary_bullets(content):
     """提取 30 秒重點精華條列，若無則提取導語或前幾點核心摘要"""
     bullets = []
     
-    # 嘗試匹配 【2】⏱️ 30 秒重點精華 或類似標題
-    pattern = r'##\s*(?:【\d+】\s*)?(?:⏱️\s*)?(?:30\s*秒)?重點精華.*?\n([\s\S]*?)(?=\n##\s|\Z)'
+    # 嘗試匹配 【2】⏱️ 30 秒重點精華 / ⏱️ 30 秒精華 或類似標題
+    pattern = r'##\s*(?:【\d+】\s*)?(?:⏱️\s*)?(?:30\s*秒)?(?:重點)?精華.*?\n([\s\S]*?)(?=\n##\s|\Z)'
     match = re.search(pattern, content)
     if match:
         section_text = match.group(1).strip()
