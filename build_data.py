@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 戰情指揮中心情報建置引擎 (Briefing Command Center Data Builder)
-萃取 21 檔每日晨報 + 4 檔每週週報之 Frontmatter、30秒精簡摘要、完整內容與歷史期數（共 25 檔情報流）。
+萃取 22 檔每日晨報 + 4 檔每週週報之 Frontmatter、30秒精簡摘要、完整內容與歷史期數（共 26 檔情報流）。
 """
 import os
 import sys
@@ -277,6 +277,18 @@ CHANNELS_CONFIG = [
         "accent_color": "#06b6d4",
         "badge": "每日晨報"
     },
+    {
+        "id": "opencode-rankings",
+        "name": "OpenCode 模型排行晨報",
+        "category": "ai",
+        "category_name": "AI 與前沿",
+        "type": "daily",
+        "time_slot": "08:05",
+        "folder": DAILY_DIR / "OpenCode模型排行",
+        "icon": "award",
+        "accent_color": "#38bdf8",
+        "badge": "每日 08:05"
+    },
 
     # 每週產業週報系列 (4)
     {
@@ -430,6 +442,44 @@ def extract_30s_summary_bullets(content):
                     bullets.append(f"🎬 **{ch_name}**：{video_title}")
             if len(bullets) >= 5:
                 break
+
+    # OpenCode 模型排行特殊摘要提取
+    if not bullets and ("OpenCode 模型調用量" in content or "OpenCode模型排行" in content):
+        # 1. 摘要
+        sum_m = re.search(r'-\s*摘要[：:]\s*([^\n]+)', content)
+        if sum_m:
+            bullets.append(f"📊 核心摘要：{sum_m.group(1).strip()}")
+        # 2. 7天調用 Top 3
+        table_7d = re.search(r'##\s*①\s*調用量排行.*?\(Top\s*\d+\).*?\n([\s\S]*?)(?=\n##|\Z)', content)
+        if table_7d:
+            rows = [r.strip() for r in table_7d.group(1).split('\n') if r.strip().startswith('|') and not r.strip().startswith('| #') and not r.strip().startswith('|--')]
+            top_models = []
+            for r in rows[:3]:
+                parts = [p.strip() for p in r.split('|') if p.strip()]
+                if len(parts) >= 4:
+                    clean_name = parts[1].split(' (')[0]
+                    top_models.append(f"#{parts[0]} {clean_name} ({parts[3]})")
+            if top_models:
+                bullets.append("🏆 7天調用量 Top 3：" + " ｜ ".join(top_models))
+        # 3. 廠商市佔 Top 3
+        table_share = re.search(r'##\s*③\s*廠商市佔.*?\n([\s\S]*?)(?=\n##|\Z)', content)
+        if table_share:
+            rows = [r.strip() for r in table_share.group(1).split('\n') if r.strip().startswith('|') and not r.strip().startswith('| Lab') and not r.strip().startswith('|--')]
+            shares = []
+            for r in rows[:3]:
+                parts = [p.strip() for p in r.split('|') if p.strip()]
+                if len(parts) >= 3:
+                    shares.append(f"{parts[0]} ({parts[2]})")
+            if shares:
+                bullets.append("🏢 廠商日市佔前三：" + " ｜ ".join(shares))
+        # 4. 估算總額
+        total_amt_m = re.search(r'Top合計\s*(USD\s*\$[\d,]+)', content)
+        if total_amt_m:
+            bullets.append(f"💰 7天估算消耗金額：{total_amt_m.group(1)}")
+        # 5. 獨立使用者
+        users_m = re.search(r'##\s*⑧\s*獨立使用者.*?\(合計\s*([^\)]+)\)', content)
+        if users_m:
+            bullets.append(f"👥 日活躍使用者：合計 {users_m.group(1)}")
 
     # 免費/測試模型監控特殊摘要提取
     if not bullets and ("免費" in content or "測試模型" in content or "快照" in content):
