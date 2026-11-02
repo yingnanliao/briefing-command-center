@@ -222,9 +222,9 @@ function setupEventListeners() {
 }
 
 // ==================== 資料載入 ====================
-async function loadBriefingsData(forceBust = false) {
+async function loadBriefingsData(forceBust = true) {
   try {
-    const url = `data/briefings.json${forceBust ? '?t=' + Date.now() : ''}`;
+    const url = `data/briefings.json?t=${Date.now()}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
     
