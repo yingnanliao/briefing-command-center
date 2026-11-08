@@ -525,12 +525,20 @@ def parse_file(file_path):
             title = m.group(1).strip()
         else:
             title = filename.replace('.md', '')
-    
+    if not isinstance(title, str):
+        title = str(title) if title is not None else filename.replace('.md', '')
+
     # 取得來源與標籤
     source = fm.get('source', '')
+    if not isinstance(source, str):
+        source = '' if source is None else str(source)
     tags = fm.get('tags', [])
     if isinstance(tags, str):
         tags = [t.strip() for t in tags.split(',')]
+    elif isinstance(tags, (list, tuple)):
+        tags = [str(t).strip() for t in tags]
+    else:
+        tags = [] if tags is None else [str(tags)]
     
     word_count = len(content)
     read_time = max(1, round(word_count / 450))  # 中文閱讀速度約 450 字/分
